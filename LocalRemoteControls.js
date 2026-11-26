@@ -136,7 +136,8 @@ export function installRemoteControls(handler) {
             ['dryMode', '07 Desumidificador'],
             ['boostMode', '08 Super'],
         ];
-        const keep = new Set([...orderedCommands.map(([subtype]) => subtype), 'fan']);
+        const temperatureCard = h.configDev.AC_options.temperatureCard === true;
+        const keep = new Set(temperatureCard ? [] : [...orderedCommands.map(([subtype]) => subtype), 'fan']);
         if (h.fanService) {
             const duplicate = helper.getServiceById(S.Fanv2, 'fan');
             if (duplicate) helper.removeService(duplicate);
@@ -154,13 +155,15 @@ export function installRemoteControls(handler) {
             if (service === h.service || service.UUID === S.AccessoryInformation.UUID || keep.has(service.subtype)) continue;
             const old = helper.services.find(candidate => candidate.UUID === service.UUID && candidate.subtype === service.subtype);
             if (old) helper.removeService(old);
+            h.service.removeLinkedService(service);
             h.accessory.removeService(service);
             helper.addService(service);
             // A read-only primary sensor avoids a tile that toggles every extra switch at once.
             if (service.subtype === 'outdoor') service.setPrimaryService(true);
         }
         const order = new Map(orderedCommands.map(([subtype], index) => [subtype, index]));
-        h.accessory.services.sort((a, b) => {
+        const controlsAccessory = temperatureCard ? helper : h.accessory;
+        controlsAccessory.services.sort((a, b) => {
             const position = service => service.UUID === S.AccessoryInformation.UUID ? -2 : service === h.service ? -1 : (order.get(service.subtype) ?? 100);
             return position(a) - position(b);
         });
@@ -168,6 +171,11 @@ export function installRemoteControls(handler) {
             const category = api.hap.Categories?.THERMOSTAT ?? 9;
             h.accessory.category = category;
             if (h.accessory._associatedHAPAccessory) h.accessory._associatedHAPAccessory.category = category;
+        }
+        if (temperatureCard) {
+            helper.displayName = 'Controles do ar';
+            helper.getService(S.AccessoryInformation).setCharacteristic(C.Name, 'Controles do ar');
+            if (h.fanService) h.fanService.setPrimaryService(true);
         }
         h.platform.accessories.set(helperUUID, helper);
         if (!h.platform.discoveredCacheUUIDs.includes(helperUUID)) h.platform.discoveredCacheUUIDs.push(helperUUID);

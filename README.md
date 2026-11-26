@@ -14,7 +14,7 @@ Esta pasta conserva fontes das extensões e o lockfile. O runtime acima é a ins
 
 ## Painel principal
 
-O termostato continua como serviço principal, com temperatura atual, alvo de 17–30 °C e seletor Desligado/Auto/Resfriar. O seletor de velocidade Fanv2 permanece vinculado ao termostato.
+O termostato continua como serviço principal, com temperatura atual, alvo de 17–30 °C e seletor Desligado/Auto/Resfriar. Com `temperatureCard: true`, o acessório principal publica somente o termostato para recuperar o card nativo de temperatura. Os seis botões e o seletor de velocidade ficam no acessório auxiliar `Controles do ar`, junto da leitura externa. Os callbacks continuam controlando o mesmo aparelho.
 
 Foram mantidos estes seis botões, na ordem existente:
 
@@ -25,11 +25,11 @@ Foram mantidos estes seis botões, na ordem existente:
 5. Desumidificador
 6. Super — refrigeração a 17 °C e ventilação alta
 
-A temperatura externa permanece no acessório `Funções extras do ar`. Foram removidos os botões dedicados Auto/Cool, Noite, Conforto, ligar/desligar em 1/2/4/8 horas e cancelar temporizadores. Auto/Cool continuam disponíveis no seletor do termostato. O agendador e os prazos persistidos são retirados na instalação; não existem mais agendamentos locais nesta versão.
+A temperatura externa permanece no acessório auxiliar. Foram removidos os botões dedicados Auto/Cool, Noite, Conforto, ligar/desligar em 1/2/4/8 horas e cancelar temporizadores. Auto/Cool continuam disponíveis no seletor do termostato. O agendador e os prazos persistidos são retirados na instalação; não existem mais agendamentos locais nesta versão.
 
 O modo Auto recusa ventilação manual. O Silencioso guarda o ajuste anterior para restauração; não há confirmação de controle dos LEDs. Posição fixa da aleta, limites de energia, ionizador, autolimpeza e Siga-me não são publicados como funções confirmadas.
 
-A visualização agrupada do Casa ainda apresentou um card de resumo, sem temperatura, nos testes anteriores. Reduzir os botões não garante mudar essa apresentação.
+O card principal e o painel de comandos são dois acessórios no Casa. Os comandos auxiliares podem ser agrupados entre si. Ao desativar `temperatureCard`, os botões e a velocidade retornam ao acessório principal, mas essa combinação apresentou card de resumo sem temperatura no Casa. O pareamento da ponte permanece o mesmo.
 
 ## Verificação
 

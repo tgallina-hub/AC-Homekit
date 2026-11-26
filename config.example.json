@@ -48,7 +48,8 @@
             "swingSwitch": true,
             "audioFeedback": true,
             "localDisplayControlVerified": false,
-            "compactPanel": true
+            "compactPanel": true,
+            "temperatureCard": true
           }
         }
       ]

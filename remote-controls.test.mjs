@@ -19,7 +19,7 @@ test('legacy display packet has the complete reserved payload and valid frame le
  assert.equal(command._body.length,20);
 });
 
-function fixture({displayVerified=true,heaterCooler=false,compactPanel=false,restoredHelper=false}={}){
+function fixture({displayVerified=true,heaterCooler=false,compactPanel=false,restoredHelper=false,temperatureCard=false}={}){
  const directory=mkdtempSync(join(tmpdir(),'midea-remote-'));
  const device=new EventEmitter();device.id=123;device.attributes={POWER:true,MODE:2,FAN_SPEED:60,TARGET_TEMPERATURE:21,SCREEN_DISPLAY:true,PROMPT_TONE:true,ECO_MODE:false,BOOST_MODE:false};
  const history=[];
@@ -32,7 +32,7 @@ function fixture({displayVerified=true,heaterCooler=false,compactPanel=false,res
  const ecoModeService=accessory.addService(Service.Switch,'Eco','ecoMode');
  const boostModeService=accessory.addService(Service.Switch,'Turbo','boostMode');
  const api=new EventEmitter();api.user={storagePath:()=>directory};
- const handler={useThermostat:!heaterCooler,getTargetTemperature:()=>device.attributes.TARGET_TEMPERATURE,setTargetTemperature:async value=>device.set_target_temperature(value),configDev:{AC_options:{localDisplayControlVerified:displayVerified,compactPanel}},device,accessory,service,fanService,ecoModeService,boostModeService,platform:{Service,Characteristic,api,log:console},setTargetState:async value=>device.set_attribute({POWER:value!==0}),handleConfiguredName(s,key,name){s.setCharacteristic(Characteristic.Name,name);s.setCharacteristic(Characteristic.ConfiguredName,name);}};
+ const handler={useThermostat:!heaterCooler,getTargetTemperature:()=>device.attributes.TARGET_TEMPERATURE,setTargetTemperature:async value=>device.set_target_temperature(value),configDev:{AC_options:{localDisplayControlVerified:displayVerified,compactPanel,temperatureCard}},device,accessory,service,fanService,ecoModeService,boostModeService,platform:{Service,Characteristic,api,log:console},setTargetState:async value=>device.set_attribute({POWER:value!==0}),handleConfiguredName(s,key,name){s.setCharacteristic(Characteristic.Name,name);s.setCharacteristic(Characteristic.ConfiguredName,name);}};
  if(compactPanel){for(const subtype of ['fanOnly','fanAuto','swingSwitch','dryMode'])accessory.addService(Service.Switch,subtype,subtype);api.platformAccessory=class extends Accessory{constructor(name,id){super(name,id);this.context={};}};api.hap={uuid};api.registerPlatformAccessories=()=>{};api.updatePlatformAccessories=()=>{};handler.platform.accessories=new Map([[accessory.UUID,accessory]]);handler.platform.discoveredCacheUUIDs=[];if(restoredHelper){const oldHelper=new api.platformAccessory('Funções extras do ar',uuid.generate('midea-extra-controls-123'));oldHelper.addService(Service.TemperatureSensor,'Antiga','outdoor');oldHelper.addService(Service.Switch,'Antiga ventilação','fanOnly');for(const subtype of ['localAuto','localCool','ecoMode','localComfort','localCancelTimers','localTimer-false-1','localTimer-true-8'])oldHelper.addService(Service.Switch,subtype,subtype);handler.platform.accessories.set(oldHelper.UUID,oldHelper);}accessory.addService(Service.TemperatureSensor,'Externa','outdoor');}
  for(const subtype of ['localAuto','localCool','localComfort','localCancelTimers','localTimer-false-1'])accessory.addService(Service.Switch,subtype,subtype);
  installRemoteControls(handler);
@@ -118,4 +118,25 @@ test('thermostat card retains a linked speed selector and the six remaining butt
   assert.equal(f.device.attributes.FAN_SPEED,80);
   assert.equal(f.handler.localRemote.helper.getServiceById(Service.Fanv2,'fan'),undefined);
  }finally{f.cleanup();}
+});
+
+
+test('temperature card publishes only the thermostat while grouped companion controls remain functional',async()=>{
+ const f=fixture({compactPanel:true,restoredHelper:true,temperatureCard:true});
+ try {
+  assert.deepEqual(f.history,[]);
+  assert.deepEqual(f.accessory.services.map(s=>s.UUID),[Service.AccessoryInformation.UUID,Service.Thermostat.UUID]);
+  assert.equal(f.handler.service.linkedServices.length,0);
+  const helper=f.handler.localRemote.helper;
+  assert.equal(helper.services.filter(s=>s.UUID===Service.Switch.UUID).length,6);
+  assert.ok(helper.getServiceById(Service.Fanv2,'fan'));
+  assert.equal(helper.displayName,'Controles do ar');
+  await helper.getServiceById(Service.Switch,'localQuiet').getCharacteristic(Characteristic.On).handleSetRequest(true);
+  assert.equal(f.device.attributes.FAN_SPEED,40);
+  await helper.getServiceById(Service.Switch,'localQuiet').getCharacteristic(Characteristic.On).handleSetRequest(false);
+  await helper.getServiceById(Service.Fanv2,'fan').getCharacteristic(Characteristic.RotationSpeed).handleSetRequest(80);
+  assert.equal(f.device.attributes.FAN_SPEED,80);
+  await f.handler.service.getCharacteristic(Characteristic.TargetHeatingCoolingState).handleSetRequest(Characteristic.TargetHeatingCoolingState.AUTO);
+  await assert.rejects(helper.getServiceById(Service.Fanv2,'fan').getCharacteristic(Characteristic.RotationSpeed).handleSetRequest(40));
+ } finally { f.cleanup(); }
 });
