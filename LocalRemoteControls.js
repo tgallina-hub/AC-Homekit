@@ -1,5 +1,3 @@
-import {join} from 'node:path';
-import {LocalScheduler} from './LocalScheduler.js';
 import {HAPStatus, HapStatusError} from '@homebridge/hap-nodejs';
 
 function notAllowed(message) {
@@ -27,24 +25,22 @@ export function installRemoteControls(handler) {
     };
     const update = () => {
         for (const {service, get} of extra) service.updateCharacteristic(C.On, !!get());
-        h.ecoModeService?.updateCharacteristic(C.On, !!scheduler.jobs.eco);
         if (h.fanService) {
             if (d.attributes.MODE === 1) h.fanService.updateCharacteristic(C.TargetFanState, C.TargetFanState.AUTO);
             h.fanService.getCharacteristic(C.TargetFanState).setProps({validValues: d.attributes.MODE === 1 ? [1] : [0, 1]});
         }
     };
-    const scheduler = new LocalScheduler({
-        file: join(h.platform.api.user.storagePath(), `remote-timers-${d.id}.json`),
-        execute: (job, kind) => serial(async () => {
-            if (scheduler.jobs[kind]?.id !== job.id) return;
-            if (typeof d.attributes.POWER !== 'boolean') throw Error('Aguardando leitura do estado do ar-condicionado.');
-            if (kind === 'eco' && (!d.attributes.POWER || d.attributes.MODE !== 2 || d.attributes.TARGET_TEMPERATURE !== job.targetTemperature)) return;
-            await d.set_attribute({POWER: job.power, ...(job.power && !d.attributes.MODE ? {MODE: 2} : {})});
-        }),
-        changed: update,
-        log: h.platform.log,
-    });
-    h.localRemote = {scheduler, serial, update};
+    h.localRemote = {serial, update};
+    const removedSubtypes = new Set(['localAuto', 'localCool', 'ecoMode', 'localComfort', 'localCancelTimers']);
+    const removeRetiredControls = accessory => {
+        for (const service of [...accessory.services]) {
+            if (!removedSubtypes.has(service.subtype) && !service.subtype?.startsWith('localTimer-')) continue;
+            accessory.removeService(service);
+            if (accessory.context.configuredNames) delete accessory.context.configuredNames[service.subtype];
+        }
+    };
+    removeRetiredControls(h.accessory);
+    h.ecoModeService = undefined;
     h.service.setPrimaryService(true);
     if (h.useThermostat !== false && h.fanService) {
         h.fanService.setPrimaryService(false);
@@ -52,13 +48,8 @@ export function installRemoteControls(handler) {
     }
     const clearSpecialModes = {ECO_MODE: false, BOOST_MODE: false, SLEEP_MODE: false};
     const changeMode = async mode => {
-        scheduler.cancel('eco');
         await d.set_attribute({POWER: true, MODE: mode, ...clearSpecialModes, ...(mode === 1 ? {FAN_SPEED: 102} : {})});
     };
-    switchService('localAuto', 'Modo Auto', () => d.attributes.POWER && d.attributes.MODE === 1,
-        async value => { if (value) await changeMode(1); else if (d.attributes.MODE === 1) await d.set_attribute({POWER: false}); });
-    switchService('localCool', 'Resfriar Cool', () => d.attributes.POWER && d.attributes.MODE === 2,
-        async value => { if (value) await changeMode(2); else if (d.attributes.MODE === 2) await d.set_attribute({POWER: false}); });
     const oldSetTargetState = h.setTargetState.bind(h);
     const thermostat = h.useThermostat !== false;
     const targetState = thermostat ? C.TargetHeatingCoolingState : C.TargetHeaterCoolerState;
@@ -91,20 +82,7 @@ export function installRemoteControls(handler) {
     h.fanService?.getCharacteristic(C.TargetFanState).onSet(value => autoFan(value === C.TargetFanState.AUTO));
     h.fanAutoService?.getCharacteristic(C.On).onSet(autoFan);
 
-    h.setEcoMode = value => serial(async () => {
-        if (value) {
-            await d.set_attribute({POWER: true, MODE: 2, TARGET_TEMPERATURE: Math.max(24, d.attributes.TARGET_TEMPERATURE), FAN_SPEED: 102, ECO_MODE: true});
-            scheduler.schedule('eco', false, 8 * 3600000, 'Noite 8 horas');
-            scheduler.jobs.eco.targetTemperature = d.attributes.TARGET_TEMPERATURE;
-            scheduler.jobs.eco.armedAfter = Date.now() + 15000;
-            scheduler.save();
-        } else { scheduler.cancel('eco'); await d.set_attribute({ECO_MODE: false}); }
-    });
-    h.ecoModeService?.getCharacteristic(C.On).onSet(h.setEcoMode);
-    h.getEcoMode = () => !!scheduler.jobs.eco && !!d.attributes.POWER;
-    h.ecoModeService?.getCharacteristic(C.On).onGet(h.getEcoMode);
     h.setBoostMode = value => serial(async () => {
-        scheduler.cancel('eco');
         if (value) await d.set_attribute({POWER: true, MODE: 2, TARGET_TEMPERATURE: 17, FAN_SPEED: 80, BOOST_MODE: true});
         else await d.set_attribute({BOOST_MODE: false});
     });
@@ -136,39 +114,7 @@ export function installRemoteControls(handler) {
             update();
         });
 
-    let previousComfort;
-    switchService('localComfort', 'Conforto 23 graus', () => !!previousComfort && d.attributes.POWER && d.attributes.TARGET_TEMPERATURE === 23,
-        async value => {
-            if (value) {
-                if (d.attributes.MODE === 5) throw notAllowed('Conforto não está disponível no modo Somente ventilação.');
-                previousComfort = d.attributes.TARGET_TEMPERATURE;
-                scheduler.cancel('eco');
-                await d.set_attribute({ECO_MODE: false, BOOST_MODE: false, TARGET_TEMPERATURE: 23, FAN_SPEED: d.attributes.FAN_SPEED});
-            } else if (previousComfort !== undefined) {
-                await d.set_target_temperature(previousComfort); previousComfort = undefined;
-            }
-        });
-
-    for (const power of [false, true]) {
-        for (const hours of [1, 2, 4, 8]) {
-            const label = `${power ? 'Ligar' : 'Desligar'} em ${hours}h`;
-            switchService(`localTimer-${power}-${hours}`, label,
-                () => scheduler.jobs.timer?.label === label,
-                async value => {
-                    if (value) scheduler.schedule('timer', power, hours * 3600000, label);
-                    else if (scheduler.jobs.timer?.label === label) scheduler.cancel('timer');
-                });
-        }
-    }
-    switchService('localCancelTimers', 'Cancelar temporizadores', () => false,
-        async value => { if (value) scheduler.cancelAll(); });
-    d.on('update', () => {
-        const night = scheduler.jobs.eco;
-        if (night && Date.now() >= (night.armedAfter || 0) && typeof d.attributes.POWER === 'boolean' && (!d.attributes.POWER || d.attributes.MODE !== 2 || (night.targetTemperature !== undefined && d.attributes.TARGET_TEMPERATURE !== night.targetTemperature))) scheduler.cancel('eco');
-        update();
-    });
-    h.platform.api.on('shutdown', () => scheduler.stop());
-    scheduler.resume();
+    d.on('update', update);
     update();
     if (h.configDev?.AC_options?.compactPanel && h.platform.api.platformAccessory) {
         const api = h.platform.api;
@@ -177,13 +123,12 @@ export function installRemoteControls(handler) {
         const isNew = !helper;
         helper ??= new api.platformAccessory('Funções extras do ar', helperUUID);
         helper.context.mideaCompanionFor = d.id;
+        removeRetiredControls(helper);
         helper.getService(S.AccessoryInformation)
             .setCharacteristic(C.Manufacturer, 'Midea')
             .setCharacteristic(C.Model, 'Controles adicionais')
             .setCharacteristic(C.SerialNumber, `${d.id}-extras`);
         const orderedCommands = [
-            ['localAuto', '01 Modo Auto'],
-            ['localCool', '02 Resfriar Cool'],
             ['fanOnly', '03 Somente ventilação'],
             ['fanAuto', '04 Ventilador automático'],
             ['swingSwitch', '05 Oscilação vertical'],

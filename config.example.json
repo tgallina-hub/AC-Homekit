@@ -36,7 +36,7 @@
             "fanAutoSwitch": true,
             "fanOnlyModeSwitch": true,
             "dryModeSwitch": true,
-            "ecoSwitch": true,
+            "ecoSwitch": false,
             "boostModeSwitch": true,
             "displaySwitch": {
               "flag": false

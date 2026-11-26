@@ -1,4 +1,6 @@
-# Relatório de implementação e testes — Midea Casa
+# Relatório histórico de implementação e testes — Midea Casa
+
+**Atualização de 26/11/2026:** removidos os botões Auto/Cool dedicados, Noite, Conforto e todos os temporizadores, incluindo o agendador. Os seis testes atuais passaram, cobrindo a migração dos acessórios já salvos, a ausência dos botões removidos, Auto/Cool pelo seletor, velocidade e Silencioso. A migração não envia comandos ao aparelho. A tabela abaixo registra testes de versões anteriores, incluindo funções já retiradas; não representa uma nova execução no aparelho.
 
 As extensões foram publicadas preservando a identidade dos serviços existentes e o pareamento. Os novos serviços são adicionados ao mesmo acessório. Quatro testes de software passaram: pacote do visor, persistência/repetição/cancelamento de timers, callbacks HomeKit e modo Silencioso sem alegar controle de LEDs.
 

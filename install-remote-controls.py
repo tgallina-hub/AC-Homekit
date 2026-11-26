@@ -5,8 +5,12 @@ import shutil,sys
 source=Path(__file__).resolve().parent
 root=Path(sys.argv[1]) if len(sys.argv)>1 else source
 target=root/'node_modules/homebridge-midea-platform/dist/accessory'
-for name in ('LocalRemoteControls.js','LocalScheduler.js','LocalProtocolFixes.js'):
+for name in ('LocalRemoteControls.js','LocalProtocolFixes.js'):
     shutil.copy2(source/name,target/name)
+# Retire generated timer support and stored jobs from older installations.
+(target/'LocalScheduler.js').unlink(missing_ok=True)
+for timer_file in (root/'storage').glob('remote-timers-*.json'):
+    timer_file.unlink()
 path=target/'AirConditionerAccessory.js'
 text=path.read_text()
 if "import { patchDisplayCommand }" not in text:

@@ -24,23 +24,20 @@ const selection=process.env.MIDEA_TESTS?.split('|');
 const directory=mkdtempSync(join(tmpdir(),'midea-hardware-'));
 const logger={info:()=>{},debug:process.env.MIDEA_TRACE?console.error:()=>{},warn:console.error,error:console.error};
 const tests=[
- ['Cool button',async(h,set)=>set('localCool',true),{mode:2,power:true}],
- ['Auto button',async(h,set)=>set('localAuto',true),{mode:1,fan_speed:102}],
- ['Auto blocks manual fan',async(h,set)=>{await set('localAuto',true);let rejected=false;try{await h.setRotationSpeed(40);}catch{rejected=true;}if(!rejected)throw Error('Manual fan write was not rejected');},{mode:1,fan_speed:102}],
- ['Fan low',async(h,set)=>{await set('localCool',true);await h.setRotationSpeed(40);},{mode:2,fan_speed:40}],
- ['Fan medium',async(h,set)=>{await set('localCool',true);await h.setRotationSpeed(60);},{mode:2,fan_speed:60}],
- ['Fan high',async(h,set)=>{await set('localCool',true);await h.setRotationSpeed(80);},{mode:2,fan_speed:80}],
- ['Fan automatic',async(h,set)=>{await set('localCool',true);await h.fanAutoService.getCharacteristic(Characteristic.On).handleSetRequest(true);},{fan_speed:102}],
+ ['Cool selector',async(h,set)=>h.setTargetState(Characteristic.TargetHeatingCoolingState.COOL),{mode:2,power:true}],
+ ['Auto selector',async(h,set)=>h.setTargetState(Characteristic.TargetHeatingCoolingState.AUTO),{mode:1,fan_speed:102}],
+ ['Auto blocks manual fan',async(h,set)=>{await h.setTargetState(Characteristic.TargetHeatingCoolingState.AUTO);let rejected=false;try{await h.setRotationSpeed(40);}catch{rejected=true;}if(!rejected)throw Error('Manual fan write was not rejected');},{mode:1,fan_speed:102}],
+ ['Fan low',async(h,set)=>{await h.setTargetState(Characteristic.TargetHeatingCoolingState.COOL);await h.setRotationSpeed(40);},{mode:2,fan_speed:40}],
+ ['Fan medium',async(h,set)=>{await h.setTargetState(Characteristic.TargetHeatingCoolingState.COOL);await h.setRotationSpeed(60);},{mode:2,fan_speed:60}],
+ ['Fan high',async(h,set)=>{await h.setTargetState(Characteristic.TargetHeatingCoolingState.COOL);await h.setRotationSpeed(80);},{mode:2,fan_speed:80}],
+ ['Fan automatic',async(h,set)=>{await h.setTargetState(Characteristic.TargetHeatingCoolingState.COOL);await h.fanAutoService.getCharacteristic(Characteristic.On).handleSetRequest(true);},{fan_speed:102}],
  ['Dry',async h=>h.dryModeService.getCharacteristic(Characteristic.On).handleSetRequest(true),{mode:3}],
  ['Fan only',async h=>h.fanOnlyService.getCharacteristic(Characteristic.On).handleSetRequest(true),{mode:5}],
- ['Eco Noite',async h=>{await h.ecoModeService.getCharacteristic(Characteristic.On).handleSetRequest(true);if(!h.localRemote.scheduler.jobs.eco)throw Error('8h deadline missing');},{mode:2,eco:true,target_temperature:24,fan_speed:102}],
- ['Night 8h program',async h=>{await h.ecoModeService.getCharacteristic(Characteristic.On).handleSetRequest(true);if(!h.localRemote.scheduler.jobs.eco)throw Error('8h deadline missing');},{mode:2,target_temperature:24,fan_speed:102}],
  ['Super',async h=>h.boostModeService.getCharacteristic(Characteristic.On).handleSetRequest(true),{mode:2,target_temperature:17,fan_speed:80,turbo:true}],
  ['Quiet fan and mute',async(h,set)=>{await set('localQuiet',true);if(h.device.attributes.PROMPT_TONE!==false)throw Error('Mute flag not applied');},{fan_speed:40}],
  ['Quiet cancel restores feedback',async(h,set)=>{await set('localQuiet',true);await set('localQuiet',false);if(h.device.attributes.PROMPT_TONE!==true)throw Error('Feedback not restored');},{fan_speed:40,display_on:true}],
  ['Do not disturb',async(h,set)=>set('localQuiet',true),{fan_speed:40,display_on:false}],
  ['Do not disturb cancel',async(h,set)=>{await set('localQuiet',true);await set('localQuiet',false);},{display_on:true}],
- ['Comfort 23',async(h,set)=>{await set('localCool',true);await set('localComfort',true);},{mode:2,target_temperature:23}],
  ['Vertical swing on',async h=>h.swingSwitchService.getCharacteristic(Characteristic.On).handleSetRequest(true),{swing_mode:12}],
  ['Vertical swing off',async h=>h.swingSwitchService.getCharacteristic(Characteristic.On).handleSetRequest(false),{swing_mode:0}],
  ['Direction 25',async h=>h.device.set_swing_angle('Vertical',25),{vertical_swing_angle:25}],
@@ -51,9 +48,6 @@ const tests=[
  ['Ionizer off',async h=>h.device.set_attribute({ANION:false}),{purifier:false}],
  ['Self-clean',async h=>h.device.set_self_clean(true),{self_clean:true}],
  ['Self-clean off',async h=>h.device.set_self_clean(false),{self_clean:false}],
- ['Timer cancellation',async(h,set)=>{await set('localTimer-false-1',true);await set('localCancelTimers',true);if(Object.keys(h.localRemote.scheduler.jobs).length)throw Error('Timer not cancelled');},{power:true}],
- ['Timer power off expiry',async h=>{h.localRemote.scheduler.schedule('timer',false,2000,'Hardware test');await wait(2600);},{power:false}],
- ['Timer power on expiry',async h=>{h.localRemote.scheduler.schedule('timer',true,2000,'Hardware test');await wait(2600);},{power:true}],
 ];
 try{
  for(const [name,action,expected] of tests.filter(item=>!selection||selection.includes(item[0]))){
@@ -84,7 +78,6 @@ try{
     await wait(2000);await device.refresh_status();if(Object.keys(expected).some(k=>['vertical_swing_angle','rate_select','self_clean'].includes(k)))await device.build_send(new MessageNewProtocolQuery(device.device_protocol_version,false,true));await wait(1000);
     if(Object.entries(expected).every(([k,v])=>observed[k]===v))break;
    }
-   if(name==='Night 8h program'&&!handler.localRemote.scheduler.jobs.eco)throw Error('Night deadline was unexpectedly cancelled');
    results.push({name,passed:Object.entries(expected).every(([k,v])=>observed[k]===v),expected,actual:Object.fromEntries(Object.keys(expected).map(k=>[k,observed[k]??null])),verification:'parsed responses received from the device; excludes optimistic local updates'});
   }catch(error){results.push({name,passed:false,error:String(error)});}
   finally{api.emit('shutdown');device.close();}
