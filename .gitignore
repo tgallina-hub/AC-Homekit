@@ -1,0 +1,17 @@
+node_modules/
+storage/
+logs/
+pairing.png
+pairing.json
+test-results/*original*.json
+test-results/*state.json
+test-results/hardware-test.lock
+
+# Local diagnostics, credentials and runtime artifacts
+test-results/
+.env
+.env.*
+!.env.example
+.DS_Store
+__pycache__/
+*.pyc

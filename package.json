@@ -1,0 +1,16 @@
+{
+  "dependencies": {
+    "homebridge": "2.5.0",
+    "homebridge-midea-platform": "1.6.0",
+    "node": "24.22.3",
+    "qrcode": "1.5.4"
+  },
+  "name": "midea-homekit-local",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "./start.sh",
+    "test": "./node_modules/node/bin/node --test remote-controls.test.mjs"
+  },
+  "type": "module"
+}

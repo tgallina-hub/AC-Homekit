@@ -1,0 +1,57 @@
+{
+  "bridge": {
+    "name": "Midea Casa",
+    "username": "02:00:00:00:00:01",
+    "port": 51847,
+    "pin": "031-45-154",
+    "advertiser": "bonjour-hap",
+    "bind": [
+      "en0"
+    ]
+  },
+  "accessories": [],
+  "platforms": [
+    {
+      "platform": "midea-platform",
+      "name": "Midea",
+      "refreshInterval": 30,
+      "heartbeatInterval": 10,
+      "devices": [
+        {
+          "name": "Ar-condicionado",
+          "id": 123456789,
+          "type": "Air Conditioner",
+          "advanced_options": {
+            "ip": "192.0.2.10"
+          },
+          "AC_options": {
+            "serviceType": "Thermostat",
+            "heatingCapable": false,
+            "minTemp": 17,
+            "maxTemp": 30,
+            "tempStep": 1,
+            "fahrenheit": false,
+            "outDoorTemp": true,
+            "fanAccessory": true,
+            "fanAutoSwitch": true,
+            "fanOnlyModeSwitch": true,
+            "dryModeSwitch": true,
+            "ecoSwitch": true,
+            "boostModeSwitch": true,
+            "displaySwitch": {
+              "flag": false
+            },
+            "swing": {
+              "mode": "Vertical",
+              "angleAccessory": false
+            },
+            "swingSwitch": true,
+            "audioFeedback": true,
+            "localDisplayControlVerified": false,
+            "compactPanel": true
+          }
+        }
+      ]
+    }
+  ]
+}
