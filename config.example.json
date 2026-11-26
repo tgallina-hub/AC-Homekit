@@ -49,7 +49,8 @@
             "audioFeedback": true,
             "localDisplayControlVerified": false,
             "compactPanel": true,
-            "temperatureCard": true
+            "temperatureCard": true,
+            "separateFan": true
           }
         }
       ]

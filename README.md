@@ -14,7 +14,7 @@ Esta pasta conserva fontes das extensões e o lockfile. O runtime acima é a ins
 
 ## Painel principal
 
-O termostato continua como serviço principal, com temperatura atual, alvo de 17–30 °C e seletor Desligado/Auto/Resfriar. Com `temperatureCard: true`, o acessório principal publica somente o termostato para recuperar o card nativo de temperatura. Os seis botões e o seletor de velocidade ficam no acessório auxiliar `Controles do ar`, junto da leitura externa. Os callbacks continuam controlando o mesmo aparelho.
+O termostato continua como serviço principal, com temperatura atual, alvo de 17–30 °C e seletor Desligado/Auto/Resfriar. Com `temperatureCard: true`, o acessório principal publica somente o termostato para recuperar o card nativo de temperatura. Os seis botões ficam no acessório auxiliar `Controles do ar`, junto da leitura externa. Com `separateFan: true`, o seletor de velocidade fica em um terceiro acessório, `Velocidade do ventilador`, fora do agrupamento. Os callbacks continuam controlando o mesmo aparelho.
 
 Foram mantidos estes seis botões, na ordem existente:
 

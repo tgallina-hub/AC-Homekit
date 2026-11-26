@@ -137,10 +137,41 @@ export function installRemoteControls(handler) {
             ['boostMode', '08 Super'],
         ];
         const temperatureCard = h.configDev.AC_options.temperatureCard === true;
+        const separateFan = temperatureCard && h.configDev.AC_options.separateFan === true;
         const keep = new Set(temperatureCard ? [] : [...orderedCommands.map(([subtype]) => subtype), 'fan']);
         if (h.fanService) {
             const duplicate = helper.getServiceById(S.Fanv2, 'fan');
             if (duplicate) helper.removeService(duplicate);
+        }
+        if (separateFan && h.fanService) {
+            const fanUUID = api.hap.uuid.generate(`midea-fan-control-${d.id}`);
+            let fanAccessory = h.platform.accessories.get(fanUUID);
+            const newFan = !fanAccessory;
+            const name = 'Velocidade do ventilador';
+            fanAccessory ??= new api.platformAccessory(name, fanUUID);
+            fanAccessory.context.mideaFanFor = d.id;
+            fanAccessory.getService(S.AccessoryInformation)
+                .setCharacteristic(C.Name, name)
+                .setCharacteristic(C.Manufacturer, 'Midea')
+                .setCharacteristic(C.Model, 'Controle de ventilação')
+                .setCharacteristic(C.SerialNumber, `${d.id}-fan`);
+            const oldFan = fanAccessory.getServiceById(S.Fanv2, 'fan');
+            if (oldFan) fanAccessory.removeService(oldFan);
+            h.service.removeLinkedService(h.fanService);
+            h.accessory.removeService(h.fanService);
+            h.accessory.context.configuredNames.fan = name;
+            h.fanService.displayName = name;
+            h.fanService.setCharacteristic(C.Name, name).setCharacteristic(C.ConfiguredName, name);
+            fanAccessory.addService(h.fanService);
+            h.fanService.setPrimaryService(true);
+            const category = api.hap.Categories?.FAN ?? 3;
+            fanAccessory.category = category;
+            if (fanAccessory._associatedHAPAccessory) fanAccessory._associatedHAPAccessory.category = category;
+            h.platform.accessories.set(fanUUID, fanAccessory);
+            if (!h.platform.discoveredCacheUUIDs.includes(fanUUID)) h.platform.discoveredCacheUUIDs.push(fanUUID);
+            if (newFan) api.registerPlatformAccessories('homebridge-midea-platform', 'midea-platform', [fanAccessory]);
+            api.updatePlatformAccessories([fanAccessory]);
+            h.localRemote.fanAccessory = fanAccessory;
         }
         for (const [subtype, name] of orderedCommands) {
             const service = h.accessory.getServiceById(S.Switch, subtype);
@@ -175,7 +206,7 @@ export function installRemoteControls(handler) {
         if (temperatureCard) {
             helper.displayName = 'Controles do ar';
             helper.getService(S.AccessoryInformation).setCharacteristic(C.Name, 'Controles do ar');
-            if (h.fanService) h.fanService.setPrimaryService(true);
+            if (h.fanService && !separateFan) h.fanService.setPrimaryService(true);
         }
         h.platform.accessories.set(helperUUID, helper);
         if (!h.platform.discoveredCacheUUIDs.includes(helperUUID)) h.platform.discoveredCacheUUIDs.push(helperUUID);

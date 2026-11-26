@@ -1,3 +1,7 @@
+## Alteração atual — ventilador separado
+
+O controle de velocidade foi retirado de `Controles do ar` e publicado em seu próprio acessório (`separateFan: true`). O card principal continua exclusivo do termostato, e o agrupamento mantém seis botões. Os oito testes passaram, incluindo a migração sem comandos ao aparelho, velocidade no acessório separado e bloqueio da velocidade manual em Auto. A conferência visual dessa última mudança ainda está pendente.
+
 # Relatório histórico de implementação e testes — Midea Casa
 
 **Atualização de 26/11/2026:** removidos os botões Auto/Cool dedicados, Noite, Conforto e todos os temporizadores, incluindo o agendador. Os sete testes atuais passaram, cobrindo a migração dos acessórios já salvos, a ausência dos botões removidos, Auto/Cool pelo seletor, velocidade e Silencioso. A migração não envia comandos ao aparelho. Com `temperatureCard: true`, o termostato fica sozinho no card principal e os seis botões com a velocidade ficam no painel auxiliar `Controles do ar`. A inspeção no Casa do Mac confirmou card branco com 23,0 °C em azul e alvo de 21,0 °C; o modo estava Auto. O painel auxiliar foi conferido e colocado no cômodo Quarto. Esta solução usa dois acessórios; não mantém os botões dentro da tela do termostato. A tela do iPhone ainda não foi inspecionada nesta configuração. A tabela abaixo registra testes de versões anteriores, incluindo funções já retiradas; não representa uma nova execução no aparelho.
